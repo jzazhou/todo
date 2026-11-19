@@ -1,0 +1,18 @@
+{
+  "name": "my-todo",
+  "productName": "My To-Do",
+  "version": "1.0.0",
+  "description": "A minimal typewriter-style to-do app",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "prestart": "cp ../index.html index.html",
+    "start": "electron .",
+    "prebuild": "cp ../index.html index.html",
+    "build": "electron-packager . \"My To-Do\" --platform=darwin --overwrite --out=dist --icon=icon.icns --app-bundle-id=com.local.mytodo --ignore=\"^/dist\" --ignore=\"^/README\" && codesign --force --deep --sign - dist/*/*.app && open dist/*/"
+  },
+  "devDependencies": {
+    "@electron/packager": "18.3.6",
+    "electron": "33.2.1"
+  }
+}

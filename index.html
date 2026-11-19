@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My To-Do</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e9e9e9;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #9a9a9a;
+    --line: #e2e2e2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: "Special Elite", "Courier New", Courier, monospace;
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+  }
+  button, input { font: inherit; color: inherit; }
+
+  .app {
+    width: 100%;
+    max-width: 380px;
+    /* fixed height so the card never resizes between views; the list scrolls */
+    height: max(730px, min(780px, calc(100dvh - 80px)));
+    overflow-y: auto;
+    background: var(--card);
+    border: 2px solid var(--ink);
+    box-shadow: 8px 8px 0 var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 22px 8px;
+  }
+  .avatar {
+    width: 26px; height: 26px;
+    border: 2px solid var(--ink);
+    position: relative; overflow: hidden;
+  }
+  .avatar::before { content: ""; position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); top: 4px; left: 6.5px; }
+  .avatar::after  { content: ""; position: absolute; width: 18px; height: 12px; border-radius: 50%; background: var(--ink); top: 15px; left: 2px; }
+  .pill {
+    background: var(--ink);
+    color: #fff;
+    font-size: 11px;
+    letter-spacing: .12em;
+    padding: 7px 22px;
+  }
+  .menu { width: 22px; display: grid; gap: 5px; }
+  .menu span { height: 2px; background: var(--ink); border-radius: 2px; }
+
+  /* Today / Tomorrow switch */
+  .days {
+    display: flex;
+    margin: 18px 22px 0;
+    border: 1.5px solid var(--ink);
+  }
+  .days button {
+    flex: 1;
+    border: none;
+    background: #fff;
+    padding: 8px 0;
+    font-size: 12px;
+    letter-spacing: .12em;
+    cursor: pointer;
+  }
+  .days button + button { border-left: 1.5px solid var(--ink); }
+  .days button.active { background: var(--ink); color: #fff; }
+
+  .date {
+    text-align: center;
+    font-size: 17px;
+    margin: 16px 0 18px;
+  }
+
+  ul {
+    list-style: none;
+    flex: 1;
+    min-height: 96px;
+    overflow-y: auto;
+    padding: 0 22px 2px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+  }
+  .app > header, .days, .date, .cal, form, nav { flex: none; }
+  .all-view ul { padding-top: 20px; }
+  .all-view.cal-mode ul { padding-top: 6px; }
+
+  /* month calendar (All to-dos page) */
+  .cal { margin: 20px 22px 14px; }
+  .cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .cal-title { font-size: 14px; letter-spacing: .12em; }
+  .cal-nav {
+    width: 28px; height: 28px;
+    border: 1.5px solid var(--ink);
+    background: #fff;
+    box-shadow: 2px 2px 0 var(--ink);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    transition: transform .1s, box-shadow .1s;
+  }
+  .cal-nav:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-dow { font-size: 10px; color: var(--muted); text-align: center; padding: 4px 0; letter-spacing: .08em; }
+  .cal-day {
+    height: 38px;
+    border: 1.5px solid transparent;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    position: relative;
+  }
+  .cal-blank { height: 38px; }
+  .cal-day:hover { border-color: var(--line); }
+  .cal-day.past { color: var(--muted); }
+  .cal-day.today { border-color: var(--ink); }
+  .cal-day.selected { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: 2px 2px 0 var(--muted); }
+  .cal-day .dot { width: 5px; height: 5px; background: var(--ink); }
+  .cal-day .dot.alldone { background: none; border: 1px solid var(--muted); }
+  .cal-day.selected .dot { background: #fff; }
+  .cal-day.selected .dot.alldone { background: none; border-color: #fff; }
+  .cal-day .dot.none { visibility: hidden; }
+
+  .filter {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    letter-spacing: .12em;
+    padding: 0 0 8px;
+    min-height: 0;
+    border: none;
+  }
+  .filter + li.item { border-top: 1px solid var(--line); }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 48px;
+    border-bottom: 1px solid var(--line);
+  }
+  li.item:first-child, .group + li.item { border-top: 1px solid var(--line); }
+
+  .group {
+    font-size: 11px;
+    letter-spacing: .12em;
+    color: var(--muted);
+    min-height: 0;
+    padding: 18px 0 8px;
+    border: none;
+  }
+  .group:first-child { padding-top: 0; }
+  .group.overdue { color: var(--ink); }
+
+  .check {
+    flex: none;
+    width: 20px; height: 20px;
+    border: 1.5px solid var(--ink);
+    background: #fff;
+    box-shadow: 3px 3px 0 var(--ink);
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: background .12s, transform .12s, box-shadow .12s;
+  }
+  .check svg { width: 13px; height: 13px; opacity: 0; transition: opacity .15s; }
+  li.done .check { background: var(--ink); transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  li.done .check svg { opacity: 1; }
+
+  .text {
+    flex: 1;
+    font-size: 15px;
+    line-height: 1.35;
+    padding: 12px 0;
+    word-break: break-word;
+    outline: none;
+    transition: color .15s;
+  }
+  .text[contenteditable] { cursor: text; }
+  .text[contenteditable]:focus { background: #f4f4f4; box-shadow: -6px 0 0 #f4f4f4, 6px 0 0 #f4f4f4; }
+  li.done .text { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
+
+  .icon {
+    flex: none;
+    border: none; background: none;
+    color: var(--muted);
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    position: relative;
+  }
+  .icon svg { width: 14px; height: 14px; }
+  button.icon { cursor: pointer; }
+  button.icon:hover { color: var(--ink); }
+  .icon input[type=date] {
+    position: absolute; inset: 0;
+    opacity: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .del { font-size: 18px; line-height: 1; opacity: 0; transition: opacity .15s; }
+  li:hover .del, .del:focus-visible { opacity: 1; }
+  @media (hover: none) { .del { opacity: .6; } }
+
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 30px 0; border: none !important; justify-content: center; }
+
+  form {
+    display: flex;
+    gap: 10px;
+    padding: 16px 22px 20px;
+  }
+  form .field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    border: 1.5px solid var(--ink);
+  }
+  form .field:focus-within { box-shadow: 3px 3px 0 var(--ink); }
+  form input[type=text] {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: #fff;
+    padding: 12px 14px;
+    font-size: 14px;
+    outline: none;
+  }
+  form input::placeholder { color: var(--muted); }
+  form input[type=date] {
+    flex: none;
+    border: none;
+    border-left: 1.5px solid var(--ink);
+    background: #fff;
+    padding: 0 8px;
+    font-size: 12px;
+    outline: none;
+    width: 128px;
+  }
+  form button {
+    flex: none;
+    width: 46px; height: 46px;
+    border: 1.5px solid var(--ink);
+    background: var(--ink);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--muted);
+    transition: transform .1s, box-shadow .1s;
+  }
+  form button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--muted); }
+
+  /* bottom navigation */
+  nav {
+    display: flex;
+    gap: 12px;
+    padding: 14px 22px 22px;
+    border-top: 1.5px solid var(--ink);
+  }
+  nav button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 0 8px;
+    border: 1.5px solid var(--ink);
+    background: #fff;
+    font-size: 10px;
+    letter-spacing: .12em;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--ink);
+    transition: transform .1s, box-shadow .1s;
+  }
+  nav button svg { width: 16px; height: 16px; }
+  nav button.active { background: var(--ink); color: #fff; transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header>
+      <div class="avatar" aria-hidden="true"></div>
+      <div class="pill" id="title">MY TO-DO</div>
+      <div class="menu" aria-hidden="true"><span></span><span></span><span></span></div>
+    </header>
+
+    <div class="days" id="days">
+      <button type="button" data-day="0">TODAY</button>
+      <button type="button" data-day="1">TOMORROW</button>
+    </div>
+
+    <div class="days" id="modes" hidden>
+      <button type="button" data-mode="list">LIST</button>
+      <button type="button" data-mode="cal">CALENDAR</button>
+    </div>
+
+    <p class="date" id="date"></p>
+
+    <section class="cal" id="cal" hidden aria-label="Calendar"></section>
+
+    <ul id="list"></ul>
+
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <input id="input" type="text" placeholder="Add new" aria-label="New to-do">
+        <input id="due" type="date" aria-label="Due date" hidden>
+      </div>
+      <button type="button" id="add" aria-label="Add">+</button>
+    </form>
+
+    <nav>
+      <button type="button" data-view="day">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3"/></svg>
+        DAILY
+      </button>
+      <button type="button" data-view="all">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5.5 4h8M5.5 8h8M5.5 12h8"/><rect x="2" y="3" width="1.5" height="1.5" fill="currentColor" stroke="none"/><rect x="2" y="7" width="1.5" height="1.5" fill="currentColor" stroke="none"/><rect x="2" y="11" width="1.5" height="1.5" fill="currentColor" stroke="none"/></svg>
+        ALL TO-DOS
+      </button>
+    </nav>
+  </main>
+
+<script>
+  const KEY = "minimal-todos-v2";
+  const OLD_KEY = "minimal-todos";
+  const $ = (id) => document.getElementById(id);
+  const list = $("list"), form = $("form"), input = $("input"), dueInput = $("due");
+
+  // ---------- dates (local time, stored as YYYY-MM-DD) ----------
+  const pad = (n) => String(n).padStart(2, "0");
+  const keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const dayKey = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return keyOf(d); };
+  const parseKey = (k) => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+  const longDate = (k) => parseKey(k).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const shortDate = (k) => parseKey(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+
+  // ---------- storage ----------
+  const load = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  let state = load(KEY);
+  if (!state) {
+    // carry over items from the earlier version, dated today
+    const old = load(OLD_KEY);
+    const today = dayKey(0);
+    const todos = (old || [
+      { text: "Drink water", done: false },
+      { text: "Go to sleep early", done: true },
+      { text: "Work", done: false },
+    ]).map((t) => ({ id: uid(), text: t.text, done: !!t.done, due: today }));
+    state = { todos, view: "day", day: 0 };
+    save();
+  }
+
+  // ---------- icons ----------
+  const ICON = {
+    check: '<svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
+    cal: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3"/></svg>',
+  };
+
+  // ---------- one row ----------
+  function row(t, { inAll }) {
+    const li = document.createElement("li");
+    li.className = "item" + (t.done ? " done" : "");
+
+    const box = document.createElement("button");
+    box.type = "button";
+    box.className = "check";
+    box.setAttribute("role", "checkbox");
+    box.setAttribute("aria-checked", t.done);
+    box.setAttribute("aria-label", t.text);
+    box.innerHTML = ICON.check;
+    box.onclick = () => { t.done = !t.done; save(); render(); };
+
+    const text = document.createElement("span");
+    text.className = "text";
+    text.textContent = t.text;
+    text.contentEditable = "true";
+    text.spellcheck = false;
+    text.setAttribute("role", "textbox");
+    text.setAttribute("aria-label", "Edit to-do");
+    text.onkeydown = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); text.blur(); }
+      if (e.key === "Escape") { text.textContent = t.text; text.blur(); }
+    };
+    text.onpaste = (e) => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData("text").replace(/\s+/g, " ");
+      document.execCommand("insertText", false, pasted);
+    };
+    // Save on blur without re-rendering, so a click elsewhere isn't swallowed.
+    text.onblur = () => {
+      const v = text.textContent.replace(/\s+/g, " ").trim();
+      if (v) { t.text = v; save(); }
+      text.textContent = t.text;
+    };
+
+    li.append(box, text);
+
+    if (inAll) {
+      // calendar button opens a date picker to move the due date
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "icon";
+      btn.title = "Change due date";
+      btn.setAttribute("aria-label", "Change due date");
+      btn.innerHTML = ICON.cal;
+      const picker = document.createElement("input");
+      picker.type = "date";
+      picker.value = t.due;
+      picker.min = dayKey(0);
+      picker.tabIndex = -1;
+      picker.onchange = () => { if (picker.value) { t.due = picker.value; save(); render(); } };
+      btn.append(picker);
+      btn.onclick = () => { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } };
+      li.append(btn);
+    }
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "icon del";
+    del.setAttribute("aria-label", "Delete");
+    del.textContent = "×";
+    del.onclick = () => { state.todos = state.todos.filter((x) => x !== t); save(); render(); };
+    li.append(del);
+
+    return li;
+  }
+
+  function groupHeader(label, cls = "") {
+    const li = document.createElement("li");
+    li.className = "group " + cls;
+    li.textContent = label;
+    return li;
+  }
+
+  function empty(msg) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = msg;
+    return li;
+  }
+
+  // ---------- views ----------
+  function renderDay() {
+    const k = dayKey(state.day);
+    $("date").textContent = longDate(k);
+    const items = state.todos.filter((t) => t.due === k);
+    if (!items.length) list.append(empty(state.day ? "Nothing planned for tomorrow yet." : "Nothing to do. Add something below."));
+    items.forEach((t) => list.append(row(t, { inAll: false })));
+    input.placeholder = state.day ? "Plan for tomorrow" : "Add new";
+  }
+
+  // Calendar state (not saved): which month is shown, which day is picked.
+  let calMonth = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+  let selected = null;
+
+  function pickDay(k) {
+    selected = k;
+    // new to-dos default to the picked day (or today if it's in the past)
+    if (selected) dueInput.value = selected < dayKey(0) ? dayKey(0) : selected;
+    render();
+  }
+
+  function renderCal() {
+    const cal = $("cal");
+    cal.innerHTML = "";
+    const today = dayKey(0);
+
+    // which days have to-dos, and whether they're all done
+    const byDay = {};
+    for (const t of state.todos) {
+      const d = byDay[t.due] || (byDay[t.due] = { total: 0, done: 0 });
+      d.total++; if (t.done) d.done++;
+    }
+
+    const head = document.createElement("div");
+    head.className = "cal-head";
+    const prev = document.createElement("button");
+    prev.type = "button"; prev.className = "cal-nav"; prev.textContent = "‹"; prev.setAttribute("aria-label", "Previous month");
+    prev.onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); render(); };
+    const next = document.createElement("button");
+    next.type = "button"; next.className = "cal-nav"; next.textContent = "›"; next.setAttribute("aria-label", "Next month");
+    next.onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); render(); };
+    const title = document.createElement("span");
+    title.className = "cal-title";
+    title.textContent = calMonth.toLocaleDateString("en-GB", { month: "long", year: "numeric" }).toUpperCase();
+    head.append(prev, title, next);
+
+    const grid = document.createElement("div");
+    grid.className = "cal-grid";
+    ["M", "T", "W", "T", "F", "S", "S"].forEach((d) => {
+      const el = document.createElement("span"); el.className = "cal-dow"; el.textContent = d; grid.append(el);
+    });
+
+    const lead = (calMonth.getDay() + 6) % 7; // Monday-first
+    const blank = () => { const el = document.createElement("span"); el.className = "cal-blank"; return el; };
+    for (let i = 0; i < lead; i++) grid.append(blank());
+    const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
+    for (let n = 1; n <= daysInMonth; n++) {
+      const k = keyOf(new Date(calMonth.getFullYear(), calMonth.getMonth(), n));
+      const info = byDay[k];
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cal-day" + (k === today ? " today" : "") + (k < today ? " past" : "") + (k === selected ? " selected" : "");
+      b.setAttribute("aria-label", longDate(k) + (info ? `, ${info.total} to-do${info.total > 1 ? "s" : ""}` : ""));
+      b.setAttribute("aria-pressed", k === selected);
+      const num = document.createElement("span"); num.textContent = n;
+      const dot = document.createElement("span");
+      dot.className = "dot" + (!info ? " none" : info.done === info.total ? " alldone" : "");
+      b.append(num, dot);
+      b.onclick = () => pickDay(k);
+      grid.append(b);
+    }
+    // always 6 rows, so the calendar is the same height every month
+    for (let i = lead + daysInMonth; i < 42; i++) grid.append(blank());
+    cal.append(head, grid);
+  }
+
+  function renderAll() {
+    const today = dayKey(0), tomorrow = dayKey(1);
+    input.placeholder = "New to-do";
+
+    // Calendar mode: month grid + the picked day's to-dos (today by default)
+    if (state.allMode === "cal") {
+      if (!selected) selected = today;
+      renderCal();
+      const f = document.createElement("li");
+      f.className = "filter";
+      const label = document.createElement("span");
+      label.textContent = (selected === today ? "TODAY · " : selected === tomorrow ? "TOMORROW · " : "") + shortDate(selected).toUpperCase();
+      f.append(label);
+      list.append(f);
+      const items = state.todos.filter((t) => t.due === selected);
+      if (!items.length) list.append(empty("Nothing on this day. Add one below."));
+      items.forEach((t) => list.append(row(t, { inAll: true })));
+      return;
+    }
+
+    const sorted = [...state.todos].sort((a, b) => a.due.localeCompare(b.due));
+    if (!sorted.length) { list.append(empty("No to-dos yet. Add one with a due date below.")); return; }
+
+    let last = null;
+    for (const t of sorted) {
+      let label, cls = "";
+      if (t.due < today) { label = "OVERDUE"; cls = "overdue"; }
+      else if (t.due === today) label = "TODAY · " + shortDate(t.due).toUpperCase();
+      else if (t.due === tomorrow) label = "TOMORROW · " + shortDate(t.due).toUpperCase();
+      else label = shortDate(t.due).toUpperCase();
+      if (label !== last) { list.append(groupHeader(label, cls)); last = label; }
+      list.append(row(t, { inAll: true }));
+    }
+  }
+
+  function render() {
+    list.innerHTML = "";
+    const all = state.view === "all";
+    $("app").classList.toggle("all-view", all);
+    $("title").textContent = all ? "ALL TO-DOS" : "MY TO-DO";
+    $("days").hidden = all;
+    $("date").hidden = all;
+    const calMode = all && state.allMode === "cal";
+    $("app").classList.toggle("cal-mode", calMode);
+    $("modes").hidden = !all;
+    $("cal").hidden = !calMode;
+    document.querySelectorAll("[data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === (state.allMode || "list")));
+    dueInput.hidden = !all;
+    if (all) {
+      dueInput.min = dayKey(0);
+      if (!dueInput.value || dueInput.value < dueInput.min) dueInput.value = dayKey(0);
+    }
+    document.querySelectorAll("[data-day]").forEach((b) => b.classList.toggle("active", +b.dataset.day === state.day));
+    document.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === state.view));
+    all ? renderAll() : renderDay();
+  }
+
+  // ---------- events ----------
+  document.querySelectorAll("[data-day]").forEach((b) => b.onclick = () => { state.day = +b.dataset.day; save(); render(); });
+  document.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
+    state.allMode = b.dataset.mode;
+    const today = dayKey(0);
+    // new to-dos default to today in list mode, or the picked day in calendar mode
+    dueInput.value = state.allMode === "cal" && selected && selected > today ? selected : today;
+    save();
+    render();
+  });
+  document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => { state.view = b.dataset.view; save(); render(); });
+
+  // Handle Enter and the + button directly (not via form submit), so adding
+  // also works where form submission is blocked, e.g. sandboxed previews.
+  function addTodo() {
+    const text = input.value.replace(/\s+/g, " ").trim();
+    if (!text) return;
+    const due = state.view === "all" ? (dueInput.value || dayKey(0)) : dayKey(state.day);
+    state.todos.push({ id: uid(), text, done: false, due });
+    input.value = "";
+    save();
+    render();
+    input.focus();
+  }
+  $("add").onclick = addTodo;
+  [input, dueInput].forEach((el) => el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); addTodo(); }
+  }));
+  form.onsubmit = (e) => { e.preventDefault(); addTodo(); };
+
+  // If the app is left open past midnight, refresh "today" / "tomorrow".
+  let shownToday = dayKey(0);
+  const refreshIfNewDay = () => { if (dayKey(0) !== shownToday) { shownToday = dayKey(0); render(); } };
+  document.addEventListener("visibilitychange", refreshIfNewDay);
+  setInterval(refreshIfNewDay, 60 * 1000);
+
+  render();
+</script>
+</body>
+</html>

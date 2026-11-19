@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.DS_Store
+# copied from ../index.html at build time
+mac-app/index.html
