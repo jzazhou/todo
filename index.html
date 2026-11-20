@@ -300,6 +300,27 @@
   nav button svg { width: 16px; height: 16px; }
   nav button.active { background: var(--ink); color: #fff; transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
 
+  /* notepad */
+  .notes {
+    flex: 1;
+    min-height: 0;
+    margin: 20px 22px 20px;
+    padding: 0 2px;
+    border: none;
+    outline: none;
+    resize: none;
+    font: inherit;
+    font-size: 15px;
+    line-height: 28px;
+    color: var(--ink);
+    /* faint ruled lines that scroll with the text */
+    background: linear-gradient(to bottom, transparent 27px, var(--line) 27px) local;
+    background-size: 100% 28px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted) transparent;
+  }
+  .notes::placeholder { color: var(--muted); }
+
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -327,6 +348,8 @@
 
     <ul id="list"></ul>
 
+    <textarea class="notes" id="notes" placeholder="Start typing..." aria-label="Notes" hidden></textarea>
+
     <form id="form" autocomplete="off">
       <div class="field">
         <input id="input" type="text" placeholder="Add new" aria-label="New to-do">
@@ -343,6 +366,10 @@
       <button type="button" data-view="all">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5.5 4h8M5.5 8h8M5.5 12h8"/><rect x="2" y="3" width="1.5" height="1.5" fill="currentColor" stroke="none"/><rect x="2" y="7" width="1.5" height="1.5" fill="currentColor" stroke="none"/><rect x="2" y="11" width="1.5" height="1.5" fill="currentColor" stroke="none"/></svg>
         ALL TO-DOS
+      </button>
+      <button type="button" data-view="notes">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1.5h7l3 3v10H3z"/><path d="M5.5 7.5h5M5.5 10.5h5"/></svg>
+        NOTES
       </button>
     </nav>
   </main>
@@ -583,10 +610,14 @@
   function render() {
     list.innerHTML = "";
     const all = state.view === "all";
+    const notes = state.view === "notes";
     $("app").classList.toggle("all-view", all);
-    $("title").textContent = all ? "ALL TO-DOS" : "MY TO-DO";
-    $("days").hidden = all;
-    $("date").hidden = all;
+    $("title").textContent = all ? "ALL TO-DOS" : notes ? "NOTES" : "MY TO-DO";
+    $("days").hidden = all || notes;
+    $("date").hidden = all || notes;
+    list.hidden = notes;
+    form.hidden = notes;
+    notesArea.hidden = !notes;
     const calMode = all && state.allMode === "cal";
     $("app").classList.toggle("cal-mode", calMode);
     $("modes").hidden = !all;
@@ -599,10 +630,17 @@
     }
     document.querySelectorAll("[data-day]").forEach((b) => b.classList.toggle("active", +b.dataset.day === state.day));
     document.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === state.view));
+    if (notes) {
+      if (notesArea.value !== (state.notes || "")) notesArea.value = state.notes || "";
+      return;
+    }
     all ? renderAll() : renderDay();
   }
 
   // ---------- events ----------
+  // notepad: saves as you type
+  const notesArea = $("notes");
+  notesArea.addEventListener("input", () => { state.notes = notesArea.value; save(); });
   document.querySelectorAll("[data-day]").forEach((b) => b.onclick = () => { state.day = +b.dataset.day; save(); render(); });
   document.querySelectorAll("[data-mode]").forEach((b) => b.onclick = () => {
     state.allMode = b.dataset.mode;
