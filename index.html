@@ -407,6 +407,16 @@
     save();
   }
 
+  // Daily and All to-dos are two separate lists. Each to-do records which
+  // one it belongs to. Older to-dos without one: anything due after
+  // tomorrow goes to All, the rest to Daily.
+  for (const t of state.todos) {
+    if (!t.list) t.list = t.due > dayKey(1) ? "all" : "daily";
+  }
+  save();
+  const dailyTodos = () => state.todos.filter((t) => t.list === "daily");
+  const allTodos = () => state.todos.filter((t) => t.list === "all");
+
   // ---------- icons ----------
   const ICON = {
     check: '<svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>',
@@ -500,7 +510,7 @@
   function renderDay() {
     const k = dayKey(state.day);
     $("date").textContent = longDate(k);
-    const items = state.todos.filter((t) => t.due === k);
+    const items = dailyTodos().filter((t) => t.due === k);
     if (!items.length) list.append(empty(state.day ? "Nothing planned for tomorrow yet." : "Nothing to do. Add something below."));
     items.forEach((t) => list.append(row(t, { inAll: false })));
     input.placeholder = state.day ? "Plan for tomorrow" : "Add new";
@@ -524,7 +534,7 @@
 
     // which days have to-dos, and whether they're all done
     const byDay = {};
-    for (const t of state.todos) {
+    for (const t of allTodos()) {
       const d = byDay[t.due] || (byDay[t.due] = { total: 0, done: 0 });
       d.total++; if (t.done) d.done++;
     }
@@ -586,13 +596,13 @@
       label.textContent = (selected === today ? "TODAY · " : selected === tomorrow ? "TOMORROW · " : "") + shortDate(selected).toUpperCase();
       f.append(label);
       list.append(f);
-      const items = state.todos.filter((t) => t.due === selected);
+      const items = allTodos().filter((t) => t.due === selected);
       if (!items.length) list.append(empty("Nothing on this day. Add one below."));
       items.forEach((t) => list.append(row(t, { inAll: true })));
       return;
     }
 
-    const sorted = [...state.todos].sort((a, b) => a.due.localeCompare(b.due));
+    const sorted = allTodos().sort((a, b) => a.due.localeCompare(b.due));
     if (!sorted.length) { list.append(empty("No to-dos yet. Add one with a due date below.")); return; }
 
     let last = null;
@@ -658,7 +668,7 @@
     const text = input.value.replace(/\s+/g, " ").trim();
     if (!text) return;
     const due = state.view === "all" ? (dueInput.value || dayKey(0)) : dayKey(state.day);
-    state.todos.push({ id: uid(), text, done: false, due });
+    state.todos.push({ id: uid(), text, done: false, due, list: state.view === "all" ? "all" : "daily" });
     input.value = "";
     save();
     render();
